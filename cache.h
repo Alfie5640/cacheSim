@@ -42,7 +42,10 @@ extern uint32_t L2Counter;
 // Function declarations
 void init_cache();
 void free_cache();
-int cache_read(uint32_t address);
-int cache_write(uint32_t address);
+void read_from_memory(uint32_t address);
+void write_to_memory(uint32_t address);
+uint32_t log2Bin(uint32_t n);
+int cache_read(uint64_t address);
+int cache_write(uint64_t address);
 
 #endif

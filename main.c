@@ -25,10 +25,10 @@ void process_trace(const char *filename) {
     }
 
     char operation;
-    uint32_t address;
+    uint64_t address;
     int result; // hit or miss
 
-    while (fscanf(fp, " %c %x", &operation, &address) == 2) {
+    while (fscanf(fp, " %c %lx,%*d", &operation, &address) == 2) {
         
         if (operation == 'I') {
             continue; //Not I-cache yet
@@ -54,6 +54,7 @@ void process_trace(const char *filename) {
             if (result == 1) L1_hits++;
             else L1_misses++;
             
+            L1_writes++;
             result = cache_write(address);
             if (result == 1) L1_hits++;
             else L1_misses++;
@@ -63,9 +64,13 @@ void process_trace(const char *filename) {
     fclose(fp);
 }
 
-// Print results: TODO AT END
+// Print results: TODO
 void print_results() {
-
+    printf("L1 Hits:   %u\n", L1_hits);
+    printf("L1 Misses: %u\n", L1_misses);
+    printf("L1 Reads:  %u\n", L1_reads);
+    printf("L1 Writes: %u\n", L1_writes);
+    printf("Hit rate:  %.2f%%\n", 100.0 * L1_hits / (L1_hits + L1_misses));
 }
 
 int main(int argc, char *argv[]) {
@@ -74,6 +79,13 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+
+    //DEFAULT VALUES
+    cache_level = 1;
+    L1_cache_size = 4096;        // 4KB
+    L1_cache_associativity = 1;  // direct-mapped
+    L1_cache_block_size = 16;
+
     parse_args(argc, argv);
     init_cache();
     
@@ -81,6 +93,6 @@ int main(int argc, char *argv[]) {
     process_trace(argv[1]);
     
     print_results();
-
+    free_cache();
     return 0;
 }

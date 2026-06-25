@@ -32,9 +32,27 @@ uint32_t **L2AccessedTime;
 uint32_t counter = 0;
 uint32_t L2Counter = 0;
 
+uint32_t log2Bin(uint32_t n) {
+    uint32_t result = 0;
+
+    while (n >>= 1) {
+        result++;
+    }
+
+    return result;
+}
+
+
+
 void init_cache() {
     uint32_t setNum[2] = {0, 0};
     setNum[0] = (L1_cache_size / (L1_cache_block_size * L1_cache_associativity));
+    num_sets    = setNum[0]; //Initially
+
+    /*Calculate memory address bit breakdown*/
+    offset_bits = log2Bin(L1_cache_block_size);
+    index_bits  = log2Bin(num_sets);
+    tag_bits    = 32 - offset_bits - index_bits;
 
     if (cache_level == 2) {
         setNum[1] = (L2_cache_size / (L2_cache_block_size * L2_cache_associativity));
@@ -111,13 +129,73 @@ void free_cache() {
   return;
 }
 
-int cache_read(uint32_t address) {
-    // Simulate cache read
-    // Return 1 for HIT, 0 for MISS
+
+
+void write_to_memory(uint32_t address) {
+    // This is just a simulation -> no functionality
+    // Included for readability
+}
+
+void read_from_memory(uint32_t address) {
+    // This is just a simulation -> no functionality
+    // Included for readability
+}
+
+
+
+int cache_read(uint64_t address) {
+    // Simulate cache read, WRITE-BACK, WRITE-ALLOCATE
+
+    uint32_t index = (address >> offset_bits) & ((1U << index_bits) -1);
+    uint32_t tag = (address >> (offset_bits + index_bits));
+    
+    cacheBlock *searchBlock = &cache[0][index][0];
+
+    if (searchBlock->valid && searchBlock->tag == tag) {
+        return 1;
+    }
+
+    //WRITE BACK
+    if (searchBlock->valid && searchBlock->dirty) {
+        write_to_memory((searchBlock->tag << (offset_bits + index_bits)) | (index << offset_bits));
+    }
+
+    //TEMPORAL LOCALITY
+    // Not found -> put in the cache
+    read_from_memory(address);
+
+    searchBlock->valid = true;
+    searchBlock->tag = tag;
+    searchBlock->dirty = false;
+
     return 0;
 }
 
-int cache_write(uint32_t address) {
-    // Return 1 for HIT, 0 for MISS
-    return 0;
+
+
+int cache_write(uint64_t address) {
+    // Simulate cache write, WRITE-BACK, WRITE-ALLOCATE
+    uint32_t index = (address >> offset_bits) & ((1U << index_bits) -1);
+    uint32_t tag = (address >> (offset_bits + index_bits));
+    
+    cacheBlock *searchBlock = &cache[0][index][0];
+
+    //WRITE BACK
+    if (searchBlock->valid && searchBlock->tag == tag) {
+        searchBlock->dirty = true;
+        return 1;
+
+    } else {
+        // Write back dirty block
+        if (searchBlock->valid && searchBlock->dirty) {
+            write_to_memory((searchBlock->tag << (offset_bits + index_bits)) | (index << offset_bits));
+        }
+
+        // Load block, then write to it
+        read_from_memory(address);
+        searchBlock->valid = true;
+        searchBlock->tag   = tag;
+        searchBlock->dirty = true;
+        return 0;
+    }
 }
