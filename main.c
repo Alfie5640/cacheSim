@@ -64,23 +64,50 @@ void process_trace(const char *filename) {
     fclose(fp);
 }
 
-// Print results: TODO
+// Print results
+// Print results
 void print_results() {
+    double hit_rate = 100.0 * L1_hits / (L1_hits + L1_misses);
+
     printf("L1 Hits:   %u\n", L1_hits);
     printf("L1 Misses: %u\n", L1_misses);
     printf("Compulsory misses: %lu\n", compulsory_misses);
     printf("Conflict misses: %lu\n", conflict_misses);
     printf("L1 Reads:  %u\n", L1_reads);
     printf("L1 Writes: %u\n", L1_writes);
-    printf("Hit rate:  %.2f%%\n", 100.0 * L1_hits / (L1_hits + L1_misses));
+    printf("Hit rate:  %.2f%%\n", hit_rate);
 }
+
+void save_results_csv(const char *workload) {
+    FILE *fp = fopen("results.csv", "a");
+
+    if (fp == NULL) {
+        perror("results.csv");
+        return;
+    }
+
+    double hit_rate = 100.0 * L1_hits / (L1_hits + L1_misses);
+
+    fprintf(fp,
+        "%s,%u,%u,%lu,%lu,%u,%u,%.2f\n",
+        workload,
+        L1_hits,
+        L1_misses,
+        compulsory_misses,
+        conflict_misses,
+        L1_reads,
+        L1_writes,
+        hit_rate);
+
+    fclose(fp);
+}
+
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <trace_file> [-s size] [-a assoc] [-b block_size]\n", argv[0]);
         return 1;
     }
-
 
     //DEFAULT VALUES
     cache_level = 1;
@@ -95,6 +122,11 @@ int main(int argc, char *argv[]) {
     process_trace(argv[1]);
     
     print_results();
+    char *workload = getenv("WORKLOAD");
+    if (workload != NULL) {
+        save_results_csv(workload);
+    }
+
     free_cache();
     return 0;
 }

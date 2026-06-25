@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+cache_sim
+test_*
+trace.txt
+clean.txt
