@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 int main() {
-    int arr[1000];
+    int arr[1000] = {0};
     // random access pattern
     for (int i = 0; i < 1000; i++) {
         int index = rand() % 1000;

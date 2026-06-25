@@ -68,6 +68,8 @@ void process_trace(const char *filename) {
 void print_results() {
     printf("L1 Hits:   %u\n", L1_hits);
     printf("L1 Misses: %u\n", L1_misses);
+    printf("Compulsory misses: %lu\n", compulsory_misses);
+    printf("Conflict misses: %lu\n", conflict_misses);
     printf("L1 Reads:  %u\n", L1_reads);
     printf("L1 Writes: %u\n", L1_writes);
     printf("Hit rate:  %.2f%%\n", 100.0 * L1_hits / (L1_hits + L1_misses));

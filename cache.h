@@ -39,6 +39,12 @@ extern uint32_t **L2AccessedTime;
 extern uint32_t counter;
 extern uint32_t L2Counter;
 
+// Cache miss classifications
+extern uint64_t compulsory_misses;
+extern uint64_t conflict_misses; 
+extern uint64_t capacity_misses;  
+extern uint64_t hits;  
+
 // Function declarations
 void init_cache();
 void free_cache();

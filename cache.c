@@ -26,11 +26,16 @@ uint32_t L2_cache_size;
 uint32_t L2_cache_associativity;
 uint32_t L2_cache_block_size;
 
-/*Store the 'time' each block was accessed for LRU */
+// Store the 'time' each block was accessed for LRU (for later)
 uint32_t **accessedTime;
 uint32_t **L2AccessedTime;
 uint32_t counter = 0;
 uint32_t L2Counter = 0;
+
+// Cache miss classifications
+uint64_t compulsory_misses = 0;
+uint64_t conflict_misses = 0;
+uint64_t capacity_misses = 0; 
 
 uint32_t log2Bin(uint32_t n) {
     uint32_t result = 0;
@@ -151,17 +156,24 @@ int cache_read(uint64_t address) {
     
     cacheBlock *searchBlock = &cache[0][index][0];
 
+    // HIT
     if (searchBlock->valid && searchBlock->tag == tag) {
         return 1;
     }
 
-    //WRITE BACK
+    // MISS CLASSIFICATION
+    if (!searchBlock->valid) {
+        compulsory_misses++;
+    } else {
+        conflict_misses++;
+    }
+
+    // WRITE BACK
     if (searchBlock->valid && searchBlock->dirty) {
         write_to_memory((searchBlock->tag << (offset_bits + index_bits)) | (index << offset_bits));
     }
 
-    //TEMPORAL LOCALITY
-    // Not found -> put in the cache
+    // LOAD (TEMPORAL LOCALITY)
     read_from_memory(address);
 
     searchBlock->valid = true;
@@ -180,22 +192,29 @@ int cache_write(uint64_t address) {
     
     cacheBlock *searchBlock = &cache[0][index][0];
 
-    //WRITE BACK
+    // HIT
     if (searchBlock->valid && searchBlock->tag == tag) {
         searchBlock->dirty = true;
         return 1;
 
-    } else {
-        // Write back dirty block
-        if (searchBlock->valid && searchBlock->dirty) {
-            write_to_memory((searchBlock->tag << (offset_bits + index_bits)) | (index << offset_bits));
-        }
+    } 
 
-        // Load block, then write to it
-        read_from_memory(address);
-        searchBlock->valid = true;
-        searchBlock->tag   = tag;
-        searchBlock->dirty = true;
-        return 0;
+    // MISS CLASSIFICATION
+    if (!searchBlock->valid) {
+        compulsory_misses++;
+    } else {
+        conflict_misses++;
     }
+
+    // WRITE BACK
+    if (searchBlock->valid && searchBlock->dirty) {
+        write_to_memory((searchBlock->tag << (offset_bits + index_bits)) | (index << offset_bits));
+    }
+
+    // WRITE ALLOCATE
+    read_from_memory(address);
+    searchBlock->valid = true;
+    searchBlock->tag   = tag;
+    searchBlock->dirty = true;
+    return 0;
 }
