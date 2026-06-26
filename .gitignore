@@ -1,1 +1,21 @@
+# Virtual environment
 venv/
+
+# Compiled binaries
+cache_sim
+test_sequential
+test_strided
+test_random
+
+# Generated traces
+*.txt
+trace*.txt
+clean*.txt
+
+# Generated output
+*.csv
+*.png
+results/
+
+# Jupyter
+*.ipynb
