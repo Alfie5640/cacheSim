@@ -1,5 +1,1 @@
-trace.txt
-clean.txt
-*.out.*
-cache_sim
-test_program
+venv/
