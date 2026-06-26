@@ -7,7 +7,8 @@ PREFETCH_DISTANCES="0 1 2 4 8 16"
 echo "Compiling cache simulator..."
 gcc -o cache_sim main.c cache.c -lm
 
-echo "workload,hits,misses,compulsory,conflict,capacity,reads,writes,hit_rate,prefetch_distance,prefetch_total,prefetch_useful,prefetch_pollution" > results.csv
+mkdir -p results
+echo "workload,hits,misses,compulsory,conflict,capacity,reads,writes,hit_rate,prefetch_distance,prefetch_total,prefetch_useful,prefetch_pollution" > results/results.csv
 
 for test in $TESTS; do
     echo ""

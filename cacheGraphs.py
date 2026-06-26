@@ -7,7 +7,7 @@ mpl.rcParams['font.size'] = 8
 mpl.rcParams['figure.dpi'] = 200
 
 #LOAD DATA
-df = pd.read_csv("results.csv")
+df = pd.read_csv("results/results.csv")
 print(df.head())
 print(df.columns)
 
@@ -42,6 +42,7 @@ sns.barplot(
     x="pattern",
     y="hit_rate",
     hue="associativity",
+    palette="deep",
     ax=ax
 )
 
@@ -50,8 +51,8 @@ ax.set_xlabel("Memory Access Pattern")
 ax.set_title("Hit Rate by Workload and Associativity")
 
 plt.tight_layout()
-plt.savefig("hitrate_workload.png")
-plt.show()
+plt.savefig("results/hitrate_workload.png")
+plt.close()
 
 fig, ax = plt.subplots(figsize=(6,4))
 
@@ -62,6 +63,7 @@ sns.lineplot(
     hue="associativity",
     style="pattern",
     marker="o",
+    palette="deep",
     ax=ax
 )
 
@@ -70,8 +72,8 @@ ax.set_ylabel("Hit Rate (%)")
 ax.set_title("Effect of Prefetch Distance on Cache Hit Rate")
 
 plt.tight_layout()
-plt.savefig("prefetch_hitrate.png")
-plt.show()
+plt.savefig("results/prefetch_hitrate.png")
+plt.close()
 
 fig, ax = plt.subplots(figsize=(6,4))
 
@@ -80,6 +82,7 @@ sns.barplot(
     x="associativity",
     y="conflict",
     hue="pattern",
+    palette="deep",
     ax=ax
 )
 
@@ -87,8 +90,8 @@ ax.set_ylabel("Conflict Misses")
 ax.set_title("Conflict Misses by Associativity")
 
 plt.tight_layout()
-plt.savefig("conflict.png")
-plt.show()
+plt.savefig("results/conflict.png")
+plt.close()
 
 df["prefetch_efficiency"] = (
     100 * df["prefetch_useful"] /
@@ -103,6 +106,7 @@ sns.lineplot(
     y="prefetch_efficiency",
     hue="pattern",
     marker="o",
+    palette="deep",
     ax=ax
 )
 
@@ -111,8 +115,8 @@ ax.set_xlabel("Prefetch Distance")
 ax.set_title("Prefetch Efficiency")
 
 plt.tight_layout()
-plt.savefig("prefetch_efficiency.png")
-plt.show()
+plt.savefig("results/prefetch_efficiency.png")
+plt.close()
 
 fig, ax = plt.subplots(figsize=(6,4))
 
@@ -122,6 +126,7 @@ sns.lineplot(
     y="prefetch_pollution",
     hue="pattern",
     marker="o",
+    palette="deep",
     ax=ax
 )
 
@@ -130,8 +135,8 @@ ax.set_xlabel("Prefetch Distance")
 ax.set_title("Prefetch Pollution")
 
 plt.tight_layout()
-plt.savefig("pollution.png")
-plt.show()
+plt.savefig("results/pollution.png")
+plt.close()
 
 cols = [
     "hits",
@@ -160,8 +165,8 @@ sns.heatmap(
 ax.set_title("Correlation Matrix")
 
 plt.tight_layout()
-plt.savefig("heatmap.png")
-plt.show()
+plt.savefig("results/heatmap.png")
+plt.close()
 
 summary = df.groupby(["pattern", "associativity"])[
     ["hit_rate", "conflict", "capacity"]

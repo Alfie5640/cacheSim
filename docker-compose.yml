@@ -1,0 +1,5 @@
+services:
+  cache-sim:
+    build: .
+    volumes:
+      - ./results:/app/results

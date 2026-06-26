@@ -89,7 +89,7 @@ void print_results() {
 }
 
 void save_results_csv(const char *workload) {
-    FILE *fp = fopen("results.csv", "a");
+    FILE *fp = fopen("results/results.csv", "a");
 
     if (fp == NULL) {
         perror("results.csv");
