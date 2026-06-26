@@ -1,4 +1,0 @@
-workload,hits,misses,compulsory,conflict,reads,writes,hit_rate
-sequential,42693,9661,256,9405,36855,15499,81.55
-strided,37638,9771,256,9515,33638,13771,79.39
-random,79184,10091,256,9835,59178,30097,88.70
