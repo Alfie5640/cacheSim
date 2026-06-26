@@ -11,6 +11,12 @@ uint32_t index_bits;
 uint32_t tag_bits;
 uint32_t num_levels;
 
+// Prefetch Variables
+uint32_t prefetch_distance = 0;
+uint64_t prefetch_total    = 0;
+uint64_t prefetch_useful   = 0;
+uint64_t prefetch_pollution = 0;
+
 // Cache statistics
 uint32_t L1_hits = 0;
 uint32_t L1_misses = 0;
@@ -106,6 +112,8 @@ void init_cache() {
             for (int x=0; x < associativity; x++) {
                 cache[y][i][x].valid = false;
                 cache[y][i][x].dirty = false;
+                cache[y][i][x].prefetched = false;
+                cache[y][i][x].used      = false;
                 cache[y][i][x].tag = 0;
             }
         }
@@ -191,6 +199,48 @@ int fa_cache_lookup(uint64_t address) {
 }
 
 
+
+void prefetch_block(uint64_t address) {
+    uint32_t index = (address >> offset_bits) & ((1U << index_bits) - 1);
+    uint32_t tag   = (address >> (offset_bits + index_bits));
+
+    cacheBlock *searchBlock = cache[0][index];
+
+    // Dont prefetch if already in cache
+    for (uint32_t i = 0; i < L1_cache_associativity; i++) {
+        if (searchBlock[i].valid && searchBlock[i].tag == tag) {
+            return;
+        }
+    }
+
+    // Find LRU way to evict
+    uint32_t lru = 0;
+    for (uint32_t i = 1; i < L1_cache_associativity; i++) {
+        if (accessedTime[index][i] < accessedTime[index][lru])
+            lru = i;
+    }
+
+    // Track pollution
+    if (searchBlock[lru].valid && searchBlock[lru].prefetched && !searchBlock[lru].used) {
+        prefetch_pollution++;
+    }
+
+    // WRITE BACK
+    if (searchBlock[lru].valid && searchBlock[lru].dirty) {
+        write_to_memory((searchBlock[lru].tag << (offset_bits + index_bits)) | (index << offset_bits));
+    }
+
+    searchBlock[lru].valid     = true;
+    searchBlock[lru].dirty     = false;
+    searchBlock[lru].tag       = tag;
+    searchBlock[lru].prefetched = true;
+    searchBlock[lru].used      = false;
+    accessedTime[index][lru]   = counter++;
+
+    prefetch_total++;
+}
+
+
 void write_to_memory(uint32_t address) {
     // This is just a simulation -> no functionality
     // Included for readability
@@ -226,6 +276,12 @@ int cache_read(uint64_t address) {
         accessedTime[index][matchingBlock] = counter;
         counter = counter + 1;
 
+        // WAS THIS PREFETCHED
+        if (searchBlock[matchingBlock].prefetched && !searchBlock[matchingBlock].used) {
+            prefetch_useful++;
+            searchBlock[matchingBlock].used = true;
+        }
+
         return 1;
     }
 
@@ -255,8 +311,16 @@ int cache_read(uint64_t address) {
 
     searchBlock[j].valid = true;
     searchBlock[j].tag = tag;
+    searchBlock[j].prefetched = false;
+    searchBlock[j].used       = false;
     searchBlock[j].dirty = false;
     accessedTime[index][j] = counter++; // Now most recently used
+
+
+    // Prefetch next N blocks
+    for (uint32_t i = 1; i <= prefetch_distance; i++) {
+        prefetch_block(address + i * L1_cache_block_size);
+    }
 
     return 0;
 }
@@ -317,6 +381,8 @@ int cache_write(uint64_t address) {
 
     searchBlock[j].valid = true;
     searchBlock[j].tag   = tag;
+    searchBlock[j].prefetched = false;
+    searchBlock[j].used       = false;
     searchBlock[j].dirty = true;
 
     accessedTime[index][j] = counter;

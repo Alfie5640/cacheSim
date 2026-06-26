@@ -7,6 +7,8 @@
 typedef struct {
     uint8_t  valid;
     uint8_t  dirty;
+    uint8_t  prefetched;
+    uint8_t  used;
     uint32_t tag;
 } cacheBlock;
 
@@ -17,6 +19,12 @@ extern uint32_t offset_bits;
 extern uint32_t index_bits;
 extern uint32_t tag_bits;
 extern uint32_t num_levels;
+
+// Prefetching Variables
+extern uint32_t prefetch_distance;
+extern uint64_t prefetch_total;
+extern uint64_t prefetch_useful;
+extern uint64_t prefetch_pollution;
 
 // Cache statistics
 extern uint32_t L1_hits;
@@ -62,6 +70,7 @@ void init_cache();
 void free_cache();
 void read_from_memory(uint32_t address);
 void write_to_memory(uint32_t address);
+void prefetch_block(uint64_t address);
 uint32_t log2Bin(uint32_t n);
 int cache_read(uint64_t address);
 int cache_write(uint64_t address);

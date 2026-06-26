@@ -12,6 +12,8 @@ void parse_args(int argc, char *argv[]) {
             L1_cache_associativity = atoi(argv[++i]);
         } else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
             L1_cache_block_size = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "-p") == 0 && i + 1 < argc) {
+            prefetch_distance = atoi(argv[++i]);
         }
     }
 }
@@ -65,7 +67,6 @@ void process_trace(const char *filename) {
 }
 
 // Print results
-// Print results
 void print_results() {
     double hit_rate = 100.0 * L1_hits / (L1_hits + L1_misses);
 
@@ -77,6 +78,14 @@ void print_results() {
     printf("L1 Reads:  %u\n", L1_reads);
     printf("L1 Writes: %u\n", L1_writes);
     printf("Hit rate:  %.2f%%\n", hit_rate);
+    if (prefetch_distance > 0) {
+        double accuracy = 100.0 * prefetch_useful / prefetch_total;
+        double pollution = 100.0 * prefetch_pollution / prefetch_total;
+        printf("Prefetch distance: %u\n", prefetch_distance);
+        printf("Prefetch total:    %lu\n", prefetch_total);
+        printf("Prefetch useful:   %lu (%.2f%%)\n", prefetch_useful, accuracy);
+        printf("Prefetch pollution:%lu (%.2f%%)\n", prefetch_pollution, pollution);
+    }
 }
 
 void save_results_csv(const char *workload) {
@@ -90,7 +99,7 @@ void save_results_csv(const char *workload) {
     double hit_rate = 100.0 * L1_hits / (L1_hits + L1_misses);
 
     fprintf(fp,
-        "%s,%u,%u,%lu,%lu,,%lu,%u,%u,%.2f\n",
+        "%s,%u,%u,%lu,%lu,%lu,%u,%u,%.2f,%u,%lu,%lu,%lu\n",
         workload,
         L1_hits,
         L1_misses,
@@ -99,7 +108,11 @@ void save_results_csv(const char *workload) {
         capacity_misses,
         L1_reads,
         L1_writes,
-        hit_rate);
+        hit_rate,
+        prefetch_distance,
+        prefetch_total,
+        prefetch_useful,
+        prefetch_pollution);
 
     fclose(fp);
 }
