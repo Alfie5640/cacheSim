@@ -32,10 +32,18 @@ uint32_t **L2AccessedTime;
 uint32_t counter = 0;
 uint32_t L2Counter = 0;
 
+// Fully associative shadow cache for miss classification
+uint32_t fa_num_blocks;
+uint32_t *fa_tags;
+uint8_t  *fa_valid;
+uint32_t *fa_time;
+
 // Cache miss classifications
 uint64_t compulsory_misses = 0;
 uint64_t conflict_misses = 0;
 uint64_t capacity_misses = 0; 
+
+uint8_t seen_blocks[SEEN_TABLE_SIZE];
 
 uint32_t log2Bin(uint32_t n) {
     uint32_t result = 0;
@@ -47,7 +55,21 @@ uint32_t log2Bin(uint32_t n) {
     return result;
 }
 
+int seen_before(uint64_t block_addr) {
+    uint64_t slot = block_addr % SEEN_TABLE_SIZE;
+    if (seen_blocks[slot]) return 1;
+    seen_blocks[slot] = 1;
+    return 0;
+}
 
+
+
+void init_fa_cache() {
+    fa_num_blocks = L1_cache_size / L1_cache_block_size;
+    fa_tags  = calloc(fa_num_blocks, sizeof(uint32_t));
+    fa_valid = calloc(fa_num_blocks, sizeof(uint8_t));
+    fa_time  = calloc(fa_num_blocks, sizeof(uint32_t));
+}
 
 void init_cache() {
     uint32_t setNum[2] = {0, 0};
@@ -101,6 +123,13 @@ void init_cache() {
     }
 }
 
+
+void free_fa_cache() {
+    free(fa_tags);
+    free(fa_valid);
+    free(fa_time);
+}
+
 void free_cache() { 
   /*Free memory from the inside out*/
   uint32_t setNum[2] = {0, 0};
@@ -135,6 +164,32 @@ void free_cache() {
 }
 
 
+int fa_cache_lookup(uint64_t address) {
+    uint32_t tag = address >> offset_bits;
+
+    // Check for hit
+    for (uint32_t i = 0; i < fa_num_blocks; i++) {
+        if (fa_valid[i] && fa_tags[i] == tag) {
+            fa_time[i] = counter;
+            return 1; // HIT
+        }
+    }
+
+    // MISS - find LRU way
+    uint32_t lru = 0;
+    for (uint32_t i = 1; i < fa_num_blocks; i++) {
+        if (fa_time[i] < fa_time[lru])
+            lru = i;
+    }
+
+    // Load new block
+    fa_valid[lru] = true;
+    fa_tags[lru]  = tag;
+    fa_time[lru]  = counter;
+
+    return 0; // MISS
+}
+
 
 void write_to_memory(uint32_t address) {
     // This is just a simulation -> no functionality
@@ -147,38 +202,61 @@ void read_from_memory(uint32_t address) {
 }
 
 
-
+//TODO: MISS CLASSIFICATION
 int cache_read(uint64_t address) {
     // Simulate cache read, WRITE-BACK, WRITE-ALLOCATE
 
     uint32_t index = (address >> offset_bits) & ((1U << index_bits) -1);
     uint32_t tag = (address >> (offset_bits + index_bits));
     
-    cacheBlock *searchBlock = &cache[0][index][0];
+    cacheBlock *searchBlock = cache[0][index];
+
+    int matchingBlock = -1;
+
+    for (int i = 0; i < L1_cache_associativity; i++) {
+        if (searchBlock[i].valid && searchBlock[i].tag == tag) {
+            matchingBlock = i;
+            break;
+        }
+    }
 
     // HIT
-    if (searchBlock->valid && searchBlock->tag == tag) {
+    if (matchingBlock != -1) {
+        //Update LRU policy
+        accessedTime[index][matchingBlock] = counter;
+        counter = counter + 1;
+
         return 1;
     }
 
-    // MISS CLASSIFICATION
-    if (!searchBlock->valid) {
+    uint64_t block_addr = address >> offset_bits;
+    if (!seen_before(block_addr)) {
         compulsory_misses++;
-    } else {
+    } else if (fa_cache_lookup(address)) {
         conflict_misses++;
+    } else {
+        capacity_misses++;
+    }
+
+    // FIND LRU WAY (to evict)
+    uint32_t j = 0;
+    for (uint32_t i = 1; i < L1_cache_associativity; i++) {
+        if (accessedTime[index][i] < accessedTime[index][j])
+            j = i;
     }
 
     // WRITE BACK
-    if (searchBlock->valid && searchBlock->dirty) {
-        write_to_memory((searchBlock->tag << (offset_bits + index_bits)) | (index << offset_bits));
+    if (searchBlock[j].valid && searchBlock[j].dirty) {
+        write_to_memory((searchBlock[j].tag << (offset_bits + index_bits)) | (index << offset_bits));
     }
 
     // LOAD (TEMPORAL LOCALITY)
     read_from_memory(address);
 
-    searchBlock->valid = true;
-    searchBlock->tag = tag;
-    searchBlock->dirty = false;
+    searchBlock[j].valid = true;
+    searchBlock[j].tag = tag;
+    searchBlock[j].dirty = false;
+    accessedTime[index][j] = counter++; // Now most recently used
 
     return 0;
 }
@@ -190,31 +268,59 @@ int cache_write(uint64_t address) {
     uint32_t index = (address >> offset_bits) & ((1U << index_bits) -1);
     uint32_t tag = (address >> (offset_bits + index_bits));
     
-    cacheBlock *searchBlock = &cache[0][index][0];
+    cacheBlock *searchBlock = cache[0][index];
+
+    int matchingBlock = -1;
+
+    for (int i = 0; i < L1_cache_associativity; i++) {
+        if (searchBlock[i].valid && searchBlock[i].tag == tag) {
+            matchingBlock = i;
+            break;
+        }
+    }
 
     // HIT
-    if (searchBlock->valid && searchBlock->tag == tag) {
-        searchBlock->dirty = true;
-        return 1;
+    if (matchingBlock != -1) {
 
+        // UPDATE LRU POLICY
+        accessedTime[index][matchingBlock] = counter;
+        counter = counter + 1;
+
+        searchBlock[matchingBlock].dirty = true;
+
+        return 1;
     } 
 
-    // MISS CLASSIFICATION
-    if (!searchBlock->valid) {
+    uint64_t block_addr = address >> offset_bits;
+    if (!seen_before(block_addr)) {
         compulsory_misses++;
-    } else {
+    } else if (fa_cache_lookup(address)) {
         conflict_misses++;
+    } else {
+        capacity_misses++;
+    }
+
+    // FIND LRU WAY (to evict)
+    uint32_t j = 0;
+    for (uint32_t i = 1; i < L1_cache_associativity; i++) {
+        if (accessedTime[index][i] < accessedTime[index][j])
+            j = i;
     }
 
     // WRITE BACK
-    if (searchBlock->valid && searchBlock->dirty) {
-        write_to_memory((searchBlock->tag << (offset_bits + index_bits)) | (index << offset_bits));
+    if (searchBlock[j].valid && searchBlock[j].dirty) {
+        write_to_memory((searchBlock[j].tag << (offset_bits + index_bits)) | (index << offset_bits));
     }
 
     // WRITE ALLOCATE
     read_from_memory(address);
-    searchBlock->valid = true;
-    searchBlock->tag   = tag;
-    searchBlock->dirty = true;
+
+    searchBlock[j].valid = true;
+    searchBlock[j].tag   = tag;
+    searchBlock[j].dirty = true;
+
+    accessedTime[index][j] = counter;
+    counter = counter + 1;
+
     return 0;
 }

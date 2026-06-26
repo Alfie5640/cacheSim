@@ -73,6 +73,7 @@ void print_results() {
     printf("L1 Misses: %u\n", L1_misses);
     printf("Compulsory misses: %lu\n", compulsory_misses);
     printf("Conflict misses: %lu\n", conflict_misses);
+    printf("Capacity misses: %lu\n", capacity_misses);
     printf("L1 Reads:  %u\n", L1_reads);
     printf("L1 Writes: %u\n", L1_writes);
     printf("Hit rate:  %.2f%%\n", hit_rate);
@@ -89,12 +90,13 @@ void save_results_csv(const char *workload) {
     double hit_rate = 100.0 * L1_hits / (L1_hits + L1_misses);
 
     fprintf(fp,
-        "%s,%u,%u,%lu,%lu,%u,%u,%.2f\n",
+        "%s,%u,%u,%lu,%lu,,%lu,%u,%u,%.2f\n",
         workload,
         L1_hits,
         L1_misses,
         compulsory_misses,
         conflict_misses,
+        capacity_misses,
         L1_reads,
         L1_writes,
         hit_rate);
@@ -116,7 +118,9 @@ int main(int argc, char *argv[]) {
     L1_cache_block_size = 16;
 
     parse_args(argc, argv);
+
     init_cache();
+    init_fa_cache();
     
     printf("Processing trace: %s\n", argv[1]);
     process_trace(argv[1]);
@@ -128,5 +132,7 @@ int main(int argc, char *argv[]) {
     }
 
     free_cache();
+    free_fa_cache();
+
     return 0;
 }
