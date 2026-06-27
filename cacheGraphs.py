@@ -77,6 +77,11 @@ plt.close()
 
 fig, ax = plt.subplots(figsize=(6,4))
 
+df["prefetch_efficiency"] = (
+    100 * df["prefetch_useful"] /
+    df["prefetch_total"].replace(0, pd.NA)
+)
+
 sns.barplot(
     data=df,
     x="associativity",
@@ -88,54 +93,32 @@ sns.barplot(
 
 ax.set_ylabel("Conflict Misses")
 ax.set_title("Conflict Misses by Associativity")
+fig, ax1 = plt.subplots(figsize=(6,4))
 
+# Filter
+mask = (df["pattern"] == "sequential") & (df["associativity"] == 4) & (df["prefetch"] > 0)
+plot_df = df[mask].copy()
+
+ax1.plot(plot_df["prefetch"], plot_df["prefetch_efficiency"], 
+         color="steelblue", marker="o", label="Useful (%)")
+ax1.set_xlabel("Prefetch Distance")
+ax1.set_ylabel("Useful Prefetches (%)", color="steelblue")
+ax1.tick_params(axis="y", labelcolor="steelblue")
+
+ax2 = ax1.twinx()
+pollution_pct = 100 * plot_df["prefetch_pollution"] / plot_df["prefetch_total"]
+ax2.plot(plot_df["prefetch"], pollution_pct,
+         color="tomato", marker="s", linestyle="--", label="Pollution (%)")
+ax2.set_ylabel("Pollution (% of prefetches)", color="tomato")
+ax2.tick_params(axis="y", labelcolor="tomato")
+
+lines1, labels1 = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax1.legend(lines1 + lines2, labels1 + labels2, loc="center right")
+
+ax1.set_title("Prefetch Usefulness vs Pollution (4-way Sequential)")
 plt.tight_layout()
-plt.savefig("results/conflict.png")
-plt.close()
-
-df["prefetch_efficiency"] = (
-    100 * df["prefetch_useful"] /
-    df["prefetch_total"].replace(0, pd.NA)
-)
-
-fig, ax = plt.subplots(figsize=(6,4))
-
-sns.lineplot(
-    data=df[df["prefetch"] > 0],
-    x="prefetch",
-    y="prefetch_efficiency",
-    hue="pattern",
-    marker="o",
-    palette="deep",
-    ax=ax
-)
-
-ax.set_ylabel("Useful Prefetches (%)")
-ax.set_xlabel("Prefetch Distance")
-ax.set_title("Prefetch Efficiency")
-
-plt.tight_layout()
-plt.savefig("results/prefetch_efficiency.png")
-plt.close()
-
-fig, ax = plt.subplots(figsize=(6,4))
-
-sns.lineplot(
-    data=df[df["prefetch"] > 0],
-    x="prefetch",
-    y="prefetch_pollution",
-    hue="pattern",
-    marker="o",
-    palette="deep",
-    ax=ax
-)
-
-ax.set_ylabel("Cache Pollution")
-ax.set_xlabel("Prefetch Distance")
-ax.set_title("Prefetch Pollution")
-
-plt.tight_layout()
-plt.savefig("results/pollution.png")
+plt.savefig("results/prefetch_tradeoff.png")
 plt.close()
 
 cols = [
