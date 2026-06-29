@@ -188,6 +188,7 @@ void simulate_read(simContext* sim, uint64_t address) {
         }
 
         sim->stats.hits++;
+        return;
     }
 
     uint64_t block_addr = address >> sim->config.offset_bits;
@@ -258,6 +259,7 @@ void simulate_write(simContext* sim, uint64_t address) {
         search_block[matchingBlock].dirty = true;
 
         sim->stats.hits++;
+        return;
     } 
 
     uint64_t block_addr = address >> sim->config.offset_bits;
